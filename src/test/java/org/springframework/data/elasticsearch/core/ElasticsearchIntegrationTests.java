@@ -45,6 +45,7 @@ import java.util.stream.IntStream;
 
 import org.assertj.core.api.SoftAssertions;
 import org.assertj.core.util.Lists;
+import org.elasticsearch.index.Index;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Order;
@@ -213,6 +214,20 @@ public abstract class ElasticsearchIntegrationTests {
 				.version(System.currentTimeMillis()).build();
 
 		assertThatThrownBy(() -> operations.update(sampleEntity)).isInstanceOf(DataAccessException.class);
+	}
+
+	@Test // #2385
+	public void shouldThrowDataAccessExceptionIfDocumentDoesNotExistWhileDoingPartialUpdateByEntityToExplicitIndex() {
+
+		// given
+		String documentId = nextIdAsString();
+		String messageBeforeUpdate = "some test message";
+		IndexCoordinates index = IndexCoordinates.of(indexNameProvider.indexName());
+
+		SampleEntity sampleEntity = SampleEntity.builder().id(documentId).message(messageBeforeUpdate)
+				.version(System.currentTimeMillis()).build();
+
+		assertThatThrownBy(() -> operations.update(sampleEntity, index)).isInstanceOf(DataAccessException.class);
 	}
 
 	@Test
@@ -1589,6 +1604,33 @@ public abstract class ElasticsearchIntegrationTests {
 
 		// then
 		SampleEntity indexedEntity = operations.get(documentId, SampleEntity.class);
+		assertThat(indexedEntity.getType()).isEqualTo(originalTypeInfo);
+		assertThat(indexedEntity.getMessage()).isEqualTo(messageAfterUpdate);
+	}
+
+	@Test // #2385
+	public void shouldDoPartialUpdateBySuppliedEntityForExistingDocumentToExplicitIndex() {
+
+		// given
+		String documentId = nextIdAsString();
+		String messageBeforeUpdate = "some test message";
+		String messageAfterUpdate = "test message";
+		String originalTypeInfo = "some type";
+		IndexCoordinates index = IndexCoordinates.of(indexNameProvider.indexName());
+
+		SampleEntity sampleEntity = SampleEntity.builder().id(documentId).message(messageBeforeUpdate)
+				.type(originalTypeInfo).version(System.currentTimeMillis()).build();
+		operations.save(sampleEntity, index);
+
+		// modify the entity
+		sampleEntity.setMessage(messageAfterUpdate);
+		sampleEntity.setType(null);
+
+		// when
+		operations.update(sampleEntity, index);
+
+		// then
+		SampleEntity indexedEntity = operations.get(documentId, SampleEntity.class, index);
 		assertThat(indexedEntity.getType()).isEqualTo(originalTypeInfo);
 		assertThat(indexedEntity.getMessage()).isEqualTo(messageAfterUpdate);
 	}
