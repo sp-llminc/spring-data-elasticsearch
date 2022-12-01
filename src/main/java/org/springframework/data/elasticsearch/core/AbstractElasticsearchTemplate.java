@@ -468,6 +468,11 @@ public abstract class AbstractElasticsearchTemplate implements ElasticsearchOper
 		return update(buildUpdateQueryByEntity(entity), getIndexCoordinatesFor(entity.getClass()));
 	}
 
+	@Override
+	public <T> UpdateResponse update(T entity, IndexCoordinates index) {
+		return update(buildUpdateQueryByEntity(entity), index);
+	}
+
 	protected <T> UpdateQuery buildUpdateQueryByEntity(T entity) {
 
 		Assert.notNull(entity, "entity must not be null");
